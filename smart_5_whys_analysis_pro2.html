@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart 5 Whys Analysis</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <style>
+        :root { --primary-blue: #1F4E78; --bg-gray: #F4F4F4; --border-color: #CCCCCC; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-gray); margin: 0; padding: 20px; }
+        
+        /* ปรับให้ Container หลักรองรับการปลดล็อก */
+        .container { max-width: 900px; margin: auto; background: #FFF; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); overflow-x: auto; }
+        
+        .header-flex { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--primary-blue); padding-bottom: 10px; }
+        .header-flex h1 { color: var(--primary-blue); margin: 0; font-size: 22px; }
+        .ticket-id { background: #E9ECEF; padding: 5px 15px; border-radius: 4px; font-weight: bold; font-size: 13px; color: #333; }
+        
+        .section-title { background-color: var(--primary-blue); color: white; padding: 8px 15px; font-size: 15px; font-weight: bold; margin-top: 15px; border-radius: 4px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+        .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-top: 10px; }
+        
+        label { font-weight: bold; font-size: 13px; display: block; margin-bottom: 4px; color: #555; }
+        input, textarea, select { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; font-family: inherit; font-size: 13px; }
+        textarea { resize: vertical; min-height: 60px; } 
+        
+        .image-upload-box { border: 2px dashed var(--border-color); padding: 10px; text-align: center; border-radius: 4px; background: #FAFAFA; cursor: pointer; position: relative; min-height: 100px; }
+        .image-upload-box img { max-width: 100%; max-height: 250px; display: none; margin-top: 10px; border-radius: 4px; }
+        .image-upload-box input[type="file"] { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        
+        .why-container { background: #F9F9F9; border-left: 5px solid var(--primary-blue); padding: 10px 15px; margin-top: 10px; border-radius: 4px; }
+        .why-label { font-weight: bold; color: var(--primary-blue); font-size: 14px; margin-bottom: 6px; }
+        .chain-text { font-size: 12px; color: #666; margin-bottom: 5px; font-style: italic; }
+        .warning-box { display: none; background-color: #FFF3CD; color: #856404; border: 1px solid #FFEEBA; padding: 8px; margin-top: 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; min-width: 700px; }
+        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #D9D9D9; color: #333; }
+        
+        .action-buttons { display: flex; gap: 10px; margin-top: 25px; justify-content: space-between; flex-wrap: wrap; }
+        .btn { padding: 12px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: bold; color: white; flex: 1; min-width: 200px; margin-bottom: 5px; }
+        .btn-add { background-color: #F39C12; width: 100%; margin-top: 10px; flex: none; }
+        .btn-pdf { background-color: #E74C3C; }
+        .btn-excel { background-color: #27AE60; }
+        .btn-submit { background-color: var(--primary-blue); }
+        .btn:hover { opacity: 0.9; }
+        
+        #toast { visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 4px; padding: 16px; position: fixed; z-index: 1; left: 50%; bottom: 30px; transform: translateX(-50%); font-size: 14px; }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+<div class="container" id="main-container">
+    <div id="export-content">
+        <div class="header-flex">
+            <div>
+                <h1>Smart 5 Whys Analysis</h1>
+                <div style="font-size: 12px; color: #666;">เครื่องมือวิเคราะห์รากเหง้าปัญหา (Genba Edition)</div>
+            </div>
+            <div class="ticket-id" id="ticket-id">GB-YYYYMMDD-001</div>
+        </div>
+
+        <div class="section-title">1. ข้อมูลเบื้องต้น (Basic Info)</div>
+        <div class="grid-4">
+            <div><label>วันที่</label><input type="date" id="date"></div>
+            <div><label>เวลา</label><input type="time" id="time"></div>
+            <div><label>ชื่อไลน์/แผนก</label><input type="text" id="line-name"></div>
+            <div><label>ผู้รายงาน/ทีม</label><input type="text" id="team"></div>
+            <div><label>เครื่องจักร</label><input type="text" id="machine-name"></div>
+            <div><label>รหัสเครื่อง</label><input type="text" id="machine-id"></div>
+            <div><label>จำนวนเสีย (ชิ้น)</label><input type="number" id="defect-qty"></div>
+            <div><label>จำนวนซ่อม (ชิ้น)</label><input type="number" id="repair-qty"></div>
+        </div>
+
+        <div class="section-title">2. ปรากฏการณ์ที่พบจาก Genba (Phenomenon)</div>
+        <div class="grid-2">
+            <div>
+                <label>อธิบายปัญหาที่พบเห็นหน้างาน (Fact)</label>
+                <textarea id="phenomenon" oninput="updateChain(1)"></textarea>
+            </div>
+            <div>
+                <label>ภาพประกอบ/หลักฐาน (Visual Fact)</label>
+                <div class="image-upload-box" id="upload-box">
+                    <input type="file" accept="image/*" onchange="previewImage(event)">
+                    <span id="upload-text">📸<br>คลิกเพื่ออัปโหลดรูปภาพ</span>
+                    <img id="image-preview" src="" alt="ภาพหลักฐาน">
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">3. วิเคราะห์รากเหง้า (5 Whys Analysis)</div>
+        <div id="whys-wrapper">
+            <div class="why-container">
+                <div class="why-label">ทำไม 1 (Why 1)</div>
+                <div class="chain-text" id="chain-1">คำถาม: ทำไมปัญหาด้านบนถึงเกิดขึ้น?</div>
+                <textarea id="why1" oninput="checkBlameWords(this); updateChain(2)"></textarea>
+                <div class="warning-box">⚠️ พบคำต้องห้าม! คุณกำลังโฟกัสที่ Man กรุณามองที่ Machine, Method, Material</div>
+            </div>
+            <div class="why-container">
+                <div class="why-label">ทำไม 2 (Why 2)</div>
+                <div class="chain-text" id="chain-2">คำถาม: ทำไม [...]</div>
+                <textarea id="why2" oninput="checkBlameWords(this); updateChain(3)"></textarea>
+                <div class="warning-box">⚠️ พบคำต้องห้าม! คุณกำลังโฟกัสที่ Man กรุณามองที่ Machine, Method, Material</div>
+            </div>
+            <div class="why-container">
+                <div class="why-label">ทำไม 3 (Why 3)</div>
+                <div class="chain-text" id="chain-3">คำถาม: ทำไม [...]</div>
+                <textarea id="why3" oninput="checkBlameWords(this); updateChain(4)"></textarea>
+                <div class="warning-box">⚠️ พบคำต้องห้าม! คุณกำลังโฟกัสที่ Man กรุณามองที่ Machine, Method, Material</div>
+            </div>
+            <div class="why-container">
+                <div class="why-label">ทำไม 4 (Why 4)</div>
+                <div class="chain-text" id="chain-4">คำถาม: ทำไม [...]</div>
+                <textarea id="why4" oninput="checkBlameWords(this); updateChain(5)"></textarea>
+                <div class="warning-box">⚠️ พบคำต้องห้าม! คุณกำลังโฟกัสที่ Man กรุณามองที่ Machine, Method, Material</div>
+            </div>
+            <div class="why-container" style="border-left-color: #c0392b;">
+                <div class="why-label" style="color: #c0392b;">ทำไม 5 (Root Cause / รากเหง้าปัญหา)</div>
+                <div class="chain-text" id="chain-5">คำถาม: ทำไม [...]</div>
+                <textarea id="why5" oninput="checkBlameWords(this)"></textarea>
+                <div class="warning-box">⚠️ พบคำต้องห้าม! คุณกำลังโฟกัสที่ Man กรุณามองที่ Machine, Method, Material</div>
+                <label style="margin-top: 10px; color: #c0392b;">สรุปหมวดหมู่รากเหง้า (4M):</label>
+                <select id="rc-category" style="border-color: #c0392b;">
+                    <option value="">-- บังคับเลือกหมวดหมู่ที่ต้องแก้ไข --</option>
+                    <option value="Machine">Machine (เครื่องจักร / จิ๊ก / เครื่องมือ)</option>
+                    <option value="Method">Method (วิธีการทำงาน / SOP / การตั้งค่า)</option>
+                    <option value="Material">Material (สเปกวัตถุดิบ / สภาพชิ้นงาน)</option>
+                    <option value="Environment">Environment (แสง / อุณหภูมิ / สภาพแวดล้อม)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="section-title">4. มาตรการป้องกัน (Action Plan)</div>
+        <!-- ใส่ ID ไว้เพื่อปลดล็อค overflow ตอนทำ PDF -->
+        <div id="table-wrapper" style="overflow-x:auto;">
+            <table id="action-table">
+                <tr>
+                    <th width="40%">มาตรการแก้ไข (Countermeasure)</th>
+                    <th width="25%">ประเภทงาน (Category)</th>
+                    <th width="20%">ผู้รับผิดชอบ (PIC)</th>
+                    <th width="15%">กำหนดเสร็จ</th>
+                </tr>
+                <tr>
+                    <td><textarea id="cm1" placeholder="ระบุสิ่งที่ต้องทำ..."></textarea></td>
+                    <td>
+                        <select id="cat1">
+                            <option value="">-- เลือก --</option>
+                            <option value="Quick Win">Quick Win (ใน 48 ชม.)</option>
+                            <option value="System">System Kaizen (ใน 2 สัปดาห์)</option>
+                        </select>
+                    </td>
+                    <td><input type="text" id="pic1"></td>
+                    <td><input type="date" id="due1"></td>
+                </tr>
+                <tr>
+                    <td><textarea id="cm2" placeholder="อัปเดตมาตรฐาน/SOP..."></textarea></td>
+                    <td>
+                        <select id="cat2">
+                            <option value="">-- เลือก --</option>
+                            <option value="Quick Win">Quick Win (ใน 48 ชม.)</option>
+                            <option value="System">System Kaizen (ใน 2 สัปดาห์)</option>
+                        </select>
+                    </td>
+                    <td><input type="text" id="pic2"></td>
+                    <td><input type="date" id="due2"></td>
+                </tr>
+            </table>
+        </div>
+        <button class="btn btn-add" onclick="addActionRow()">+ เพิ่มมาตรการป้องกัน</button>
+    </div> 
+
+    <div class="action-buttons">
+        <button class="btn btn-pdf" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="btn btn-excel" onclick="exportExcelExact()">📊 Export Excel</button>
+        <button class="btn btn-submit" onclick="submitToGoogleSheet()">☁️ Save to Google Sheet</button>
+    </div>
+</div>
+
+<div id="toast">ข้อความแจ้งเตือน</div>
+
+<script>
+    let actionCount = 2;
+
+    window.onload = function() {
+        document.getElementById('date').valueAsDate = new Date();
+        let dateStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+        let randomNum = Math.floor(100 + Math.random() * 900);
+        document.getElementById('ticket-id').innerText = `GB-${dateStr}-${randomNum}`;
+    };
+
+    function previewImage(event) {
+        const reader = new FileReader();
+        reader.onload = function(){
+            const img = document.getElementById('image-preview');
+            img.src = reader.result;
+            img.style.display = 'block';
+            document.getElementById('upload-text').style.display = 'none';
+        };
+        reader.readAsDataURL(event.target.files[0]);
+    }
+
+    function updateChain(nextStep) {
+        let sourceVal = nextStep === 1 ? document.getElementById('phenomenon').value : document.getElementById('why' + (nextStep - 1)).value;
+        const targetElement = document.getElementById('chain-' + nextStep);
+        if(targetElement) targetElement.innerText = sourceVal ? `คำถาม: ทำไม [${sourceVal}] ?` : `คำถาม: ทำไม [...]`;
+    }
+
+    function checkBlameWords(element) {
+        const text = element.value.toLowerCase();
+        const blameWords = ["ลืม", "ไม่ระวัง", "คนทำ", "พนักงาน", "ประมาท", "สะเพร่า", "ไม่ได้ดู"];
+        const warningBox = element.nextElementSibling;
+        if (blameWords.some(word => text.includes(word))) {
+            warningBox.style.display = "block"; 
+            element.style.borderColor = "#c0392b"; 
+            element.style.backgroundColor = "#FDF2F0";
+        } else {
+            warningBox.style.display = "none"; 
+            element.style.borderColor = "var(--border-color)";
+            element.style.backgroundColor = "#FFF";
+        }
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById("toast");
+        toast.innerText = message;
+        toast.className = "show";
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+    }
+
+    function addActionRow() {
+        actionCount++;
+        const table = document.getElementById("action-table");
+        const row = table.insertRow(-1);
+        row.innerHTML = `
+            <td><textarea id="cm${actionCount}" placeholder="ระบุสิ่งที่ต้องทำ..."></textarea></td>
+            <td>
+                <select id="cat${actionCount}">
+                    <option value="">-- เลือก --</option>
+                    <option value="Quick Win">Quick Win (ใน 48 ชม.)</option>
+                    <option value="System">System Kaizen (ใน 2 สัปดาห์)</option>
+                </select>
+            </td>
+            <td><input type="text" id="pic${actionCount}"></td>
+            <td><input type="date" id="due${actionCount}"></td>
+        `;
+    }
+
+    // =========================================================================
+    // ฟังก์ชัน PDF ตัวจบปัญหาแหว่ง: ปลดล็อค Overflow ที่ไปตัดขอบภาพ
+    // =========================================================================
+    function exportPDF() {
+        showToast("กำลังสร้างไฟล์ PDF กรุณารอสักครู่...");
+        window.scrollTo(0, 0); 
+        
+        const mainContainer = document.getElementById('main-container');
+        const tableWrapper = document.getElementById('table-wrapper');
+        const element = document.getElementById('export-content');
+
+        // เก็บค่า CSS เดิมเอาไว้
+        const origWidth = mainContainer.style.width;
+        const origMaxWidth = mainContainer.style.maxWidth;
+        const origOverflow = mainContainer.style.overflowX;
+        const origTableOverflow = tableWrapper.style.overflowX;
+
+        // บังคับกางจอ 800px และลบ overflow (ตัวการที่ตัดขอบภาพแหว่ง) ออกให้หมด!
+        mainContainer.style.width = '800px';
+        mainContainer.style.maxWidth = '800px';
+        mainContainer.style.overflowX = 'visible';
+        tableWrapper.style.overflowX = 'visible';
+
+        const opt = {
+            margin: 0.3, 
+            filename: `${document.getElementById('ticket-id').innerText}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        
+        html2pdf().set(opt).from(element).save().then(() => {
+            // คืนค่า CSS กลับเป็นเหมือนเดิมหลังแคปภาพเสร็จ
+            mainContainer.style.width = origWidth;
+            mainContainer.style.maxWidth = origMaxWidth;
+            mainContainer.style.overflowX = origOverflow;
+            tableWrapper.style.overflowX = origTableOverflow;
+            showToast("ดาวน์โหลด PDF เรียบร้อยแล้ว!");
+        });
+    }
+
+    async function exportExcelExact() {
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Genba & 5 Whys');
+        for (let i = 1; i <= 10; i++) sheet.getColumn(i).width = 13;
+
+        const setMainHeader = (range, text) => {
+            sheet.mergeCells(range);
+            const cell = sheet.getCell(range.split(':')[0]);
+            cell.value = text;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E78' } };
+            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 12 };
+            cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+        };
+
+        const setSubHeader = (range, text) => {
+            sheet.mergeCells(range);
+            const cell = sheet.getCell(range.split(':')[0]);
+            cell.value = text;
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+            cell.font = { bold: true, size: 11 };
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        };
+
+        const setBox = (range, val, align = 'left') => {
+            sheet.mergeCells(range);
+            const cell = sheet.getCell(range.split(':')[0]);
+            cell.value = val;
+            cell.alignment = { vertical: 'top', horizontal: align, wrapText: true };
+        };
+
+        sheet.mergeCells('A1:J2');
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = 'ใบรายงานและวิเคราะห์ปัญหาหน้างาน (Genba Walk & 5 Whys Report)';
+        titleCell.font = { size: 16, bold: true };
+        titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+        setMainHeader('A3:J3', 'ส่วนที่ 1: ข้อมูลเบื้องต้น (Basic Information)');
+        sheet.getCell('A4').value = 'วันที่:';       setBox('B4:C4', document.getElementById('date').value);
+        sheet.getCell('D4').value = 'เวลา:';       setBox('E4:F4', document.getElementById('time').value);
+        sheet.getCell('G4').value = 'ชื่อไลน์:';    setBox('H4:H4', document.getElementById('line-name').value);
+        sheet.getCell('I4').value = 'ผู้รายงาน:';  setBox('J4:J4', document.getElementById('team').value);
+        
+        sheet.getCell('A5').value = 'เครื่องจักร:';    setBox('B5:C5', document.getElementById('machine-name').value);
+        sheet.getCell('D5').value = 'รหัสเครื่อง:';    setBox('E5:F5', document.getElementById('machine-id').value);
+        sheet.getCell('G5').value = 'จำนวนเสีย:';   setBox('H5:H5', document.getElementById('defect-qty').value);
+        sheet.getCell('I5').value = 'จำนวนซ่อม:';   setBox('J5:J5', document.getElementById('repair-qty').value);
+
+        setMainHeader('A7:J7', 'ส่วนที่ 2: ปรากฏการณ์ / ปัญหาที่พบ (Phenomenon)');
+        setBox('A8:J12', document.getElementById('phenomenon').value);
+
+        setMainHeader('A14:J14', 'ส่วนที่ 3: การวิเคราะห์สาเหตุรากเหง้า (5 Whys Analysis)');
+        setSubHeader('A15:B15', 'ทำไม 1 (Why 1)');
+        setSubHeader('C15:D15', 'ทำไม 2 (Why 2)');
+        setSubHeader('E15:F15', 'ทำไม 3 (Why 3)');
+        setSubHeader('G15:H15', 'ทำไม 4 (Why 4)');
+        setSubHeader('I15:J15', 'ทำไม 5 (Root Cause)');
+
+        setBox('A16:B22', document.getElementById('why1').value);
+        setBox('C16:D22', document.getElementById('why2').value);
+        setBox('E16:F22', document.getElementById('why3').value);
+        setBox('G16:H22', document.getElementById('why4').value);
+        setBox('I16:J22', document.getElementById('why5').value + (document.getElementById('rc-category').value ? `\n[${document.getElementById('rc-category').value}]` : ''));
+
+        setMainHeader('A24:J24', 'ส่วนที่ 4: มาตรการป้องกันและการติดตาม (Action Plan)');
+        setSubHeader('A25:F25', 'แนวทางแก้ไข / มาตรการป้องกัน (Countermeasure)');
+        setSubHeader('G25:H25', 'ผู้รับผิดชอบ (PIC)');
+        setSubHeader('I25:J25', 'กำหนดเวลา (Deadline)');
+
+        let currentRow = 26;
+        for (let i = 1; i <= actionCount; i++) {
+            let cmEl = document.getElementById('cm'+i);
+            if(cmEl && cmEl.value !== "") {
+                let catVal = document.getElementById('cat'+i).value;
+                setBox(`A${currentRow}:F${currentRow+2}`, cmEl.value + (catVal ? ` [${catVal}]` : ''));
+                setBox(`G${currentRow}:H${currentRow+2}`, document.getElementById('pic'+i).value, 'center');
+                setBox(`I${currentRow}:J${currentRow+2}`, document.getElementById('due'+i).value, 'center');
+                currentRow += 3;
+            }
+        }
+        
+        if(currentRow === 26) {
+            setBox(`A26:F28`, '');
+            setBox(`G26:H28`, '', 'center');
+            setBox(`I26:J28`, '', 'center');
+            currentRow += 3;
+        }
+
+        for (let r = 3; r <= currentRow - 1; r++) {
+            if ([6, 13, 23].includes(r)) continue;
+            for (let c = 1; c <= 10; c++) {
+                const cell = sheet.getCell(r, c);
+                cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+                if((r===4 || r===5) && [1, 4, 7, 9].includes(c)) {
+                    cell.alignment = { vertical: 'middle', horizontal: 'center', bold: true };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+                }
+            }
+        }
+
+        currentRow += 1;
+        setBox(`B${currentRow}:C${currentRow}`, 'ผู้รายงาน: _____________________', 'center');
+        setBox(`E${currentRow}:F${currentRow}`, 'ผู้ตรวจสอบ: _____________________', 'center');
+        setBox(`H${currentRow}:I${currentRow}`, 'ผู้อนุมัติ: _____________________', 'center');
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `${document.getElementById('ticket-id').innerText}_Genba_Report.xlsx`);
+        showToast("ส่งออกข้อมูลเป็น Excel สำเร็จ!");
+    }
+
+    function submitToGoogleSheet() {
+        const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwp17_hXYvaqr-hrGvg-n2blivneEfnNa8mle6er67MX4fv3lWDLkwppv6-P7hLraXw/exec";
+        if(GOOGLE_APP_SCRIPT_URL.includes("เอา_URL")) {
+            alert("กรุณานำ URL ของ Google Apps Script มาใส่ในโค้ดก่อนครับ"); return;
+        }
+        
+        let allActions = "";
+        for (let i = 1; i <= actionCount; i++) {
+            let cm = document.getElementById('cm'+i);
+            if(cm && cm.value) {
+                allActions += `${i}. ${cm.value} [${document.getElementById('cat'+i).value}] (PIC: ${document.getElementById('pic'+i).value}, Due: ${document.getElementById('due'+i).value})\n`;
+            }
+        }
+
+        const data = {
+            ticketId: document.getElementById('ticket-id').innerText,
+            date: document.getElementById('date').value,
+            lineName: document.getElementById('line-name').value,
+            machine: document.getElementById('machine-name').value,
+            team: document.getElementById('team').value,
+            phenomenon: document.getElementById('phenomenon').value,
+            why1: document.getElementById('why1').value,
+            why2: document.getElementById('why2').value,
+            why3: document.getElementById('why3').value,
+            why4: document.getElementById('why4').value,
+            why5: document.getElementById('why5').value,
+            rcCategory: document.getElementById('rc-category').value,
+            cm1: allActions, 
+            cat1: "", pic1: "", due1: "", cm2: "", cat2: "", pic2: "", due2: ""
+        };
+        fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', body: JSON.stringify(data) })
+        .then(response => showToast("บันทึกเข้า Google Sheet สำเร็จ!"))
+        .catch(error => showToast("เกิดข้อผิดพลาดในการส่งข้อมูล"));
+    }
+</script>
+</body>
+</html>
